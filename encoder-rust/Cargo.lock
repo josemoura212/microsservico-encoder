@@ -243,6 +243,7 @@ name = "encoder-rust"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "serde",
  "sqlx",
  "tokio",
  "tracing",

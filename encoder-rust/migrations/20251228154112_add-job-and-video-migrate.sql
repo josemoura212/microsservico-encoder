@@ -1,20 +1,20 @@
 CREATE TABLE IF NOT EXISTS videos (
-    id TEXT PRIMARY KEY,
-    resource_id TEXT NOT NULL,
-    file_path TEXT NOT NULL,
+    id UUID PRIMARY KEY,
+    resource_id VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY,
     output_bucket_path TEXT NOT NULL,
     status TEXT NOT NULL,
-    video_id TEXT,
+    video_id UUID NOT NULL,
     error TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_jobs_video
-        FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE SET NULL
+        FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_jobs_video_id ON jobs (video_id);
