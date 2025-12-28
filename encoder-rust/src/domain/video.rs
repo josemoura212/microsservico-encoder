@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 pub struct Video {
     pub id: String,
@@ -8,17 +9,12 @@ pub struct Video {
 }
 
 impl Video {
-    pub fn new(
-        id: String,
-        resource_id: String,
-        file_path: String,
-        created_at: DateTime<Utc>,
-    ) -> Self {
+    pub fn new(resource_id: String, file_path: String) -> Self {
         Video {
-            id,
+            id: Uuid::new_v4().to_string(),
             resource_id,
             file_path,
-            created_at,
+            created_at: Utc::now(),
         }
     }
 }
