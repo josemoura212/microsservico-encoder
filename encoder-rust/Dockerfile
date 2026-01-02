@@ -21,6 +21,13 @@ WORKDIR /usr/src/app
 # Copy project files
 COPY Cargo.toml Cargo.lock ./
 COPY src/ src/
+COPY migrations/ migrations/
+
+# Copy sqlx offline data for compile-time verification
+COPY .sqlx/ .sqlx/
+
+# Set environment variable for sqlx offline mode
+ENV SQLX_OFFLINE=true
 
 # Build the application
 RUN cargo build --release

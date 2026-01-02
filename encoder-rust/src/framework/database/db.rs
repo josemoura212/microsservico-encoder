@@ -4,7 +4,7 @@ pub struct Database<T>
 where
     T: sqlx::Database,
 {
-    pub db: Pool<T>,
+    pub conn: Pool<T>,
 }
 
 impl Database<Postgres> {
@@ -15,7 +15,7 @@ impl Database<Postgres> {
             sqlx::migrate!().run(&db).await?;
         }
 
-        Ok(Database { db })
+        Ok(Database { conn: db })
     }
 }
 
@@ -30,6 +30,6 @@ impl Database<Sqlite> {
             sqlx::migrate!().run(&db).await?;
         }
 
-        Ok(Database { db })
+        Ok(Database { conn: db })
     }
 }

@@ -1,11 +1,8 @@
 use tracing_subscriber::EnvFilter;
 
+mod application;
 mod domain;
-mod framework {
-    mod database {
-        mod db;
-    }
-}
+mod framework;
 
 #[tokio::main]
 async fn main() {

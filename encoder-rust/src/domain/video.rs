@@ -9,7 +9,7 @@ use crate::domain::Job;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Video {
     #[serde(rename = "encoded_video_folder")]
-    pub id: String,
+    pub id: Uuid,
     pub resource_id: String,
     pub file_path: String,
     #[serde(skip)]
@@ -21,7 +21,7 @@ pub struct Video {
 impl Video {
     pub fn new(resource_id: String, file_path: String) -> Self {
         Video {
-            id: Uuid::new_v4().to_string(),
+            id: Uuid::new_v4(),
             resource_id,
             file_path,
             created_at: Utc::now(),
