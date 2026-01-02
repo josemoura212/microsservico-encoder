@@ -7,3 +7,5 @@ pub mod repositories {
     pub use repository_trait::Repository;
     pub use video_repository::VideoRepository;
 }
+
+pub use repositories::{Repository, VideoRepository, VideoRepositoryError};
