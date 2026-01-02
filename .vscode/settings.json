@@ -1,0 +1,78 @@
+{
+    // ========== Otimizações de Performance do rust-analyzer ==========
+    // Check on save configurações
+    "rust-analyzer.checkOnSave.enable": true,
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.checkOnSave.extraArgs": [
+        "--target-dir",
+        "target/rust-analyzer"
+    ],
+    // Build scripts e proc macros
+    "rust-analyzer.cargo.buildScripts.enable": true,
+    "rust-analyzer.cargo.buildScripts.overrideCommand": null,
+    "rust-analyzer.cargo.buildScripts.useRustcWrapper": true,
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.procMacro.attributes.enable": true,
+    "rust-analyzer.procMacro.ignored": {},
+    // Otimizações de Cargo
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.cargo.noDefaultFeatures": false,
+    "rust-analyzer.cargo.allTargets": true,
+    "rust-analyzer.cargo.target": null,
+    // Cache e paralelismo - aumentado para melhor performance
+    "rust-analyzer.cachePriming.enable": true,
+    "rust-analyzer.cachePriming.numThreads": 8, // threads paralelas para cache
+    "rust-analyzer.numThreads": null, // usa todos os cores disponíveis
+    // Limita diagnósticos para economizar recursos
+    "rust-analyzer.diagnostics.enable": true,
+    "rust-analyzer.diagnostics.disabled": [],
+    "rust-analyzer.diagnostics.experimental.enable": false,
+    "rust-analyzer.diagnostics.warningsAsHint": [],
+    "rust-analyzer.diagnostics.warningsAsInfo": [],
+    // Inlay hints habilitados (você gosta deles!)
+    "rust-analyzer.inlayHints.enable": true,
+    "rust-analyzer.inlayHints.chainingHints.enable": true,
+    "rust-analyzer.inlayHints.closingBraceHints.enable": true,
+    "rust-analyzer.inlayHints.closingBraceHints.minLines": 25,
+    "rust-analyzer.inlayHints.parameterHints.enable": true,
+    "rust-analyzer.inlayHints.typeHints.enable": true,
+    "rust-analyzer.inlayHints.typeHints.hideClosureInitialization": false,
+    "rust-analyzer.inlayHints.typeHints.hideNamedConstructor": false,
+    // Workspace e projetos linkados
+    "rust-analyzer.linkedProjects": [
+        "./encoder-rust/Cargo.toml"
+    ],
+    "rust-analyzer.files.excludeDirs": [
+        "target",
+        ".git",
+        "node_modules"
+    ],
+    // Otimizações de memória e CPU
+    "rust-analyzer.lru.capacity": 256, // aumentado para melhor cache
+    "rust-analyzer.lru.query.capacities": {
+        "rust-analyzer::queries::SourceRootCrates": 64
+    },
+    // Cargo watch e reload
+    "rust-analyzer.cargo.autoreload": true,
+    "rust-analyzer.cargo.buildScripts.rebuildOnSave": true,
+    // Completion e hover
+    "rust-analyzer.completion.autoimport.enable": true,
+    "rust-analyzer.completion.autoself.enable": true,
+    "rust-analyzer.hover.actions.enable": true,
+    "rust-analyzer.hover.actions.implementations.enable": true,
+    "rust-analyzer.hover.actions.references.enable": true,
+    "rust-analyzer.hover.actions.run.enable": true,
+    "rust-analyzer.hover.documentation.enable": true,
+    "rust-analyzer.hover.links.enable": true,
+    // Lens (code actions acima do código)
+    "rust-analyzer.lens.enable": true,
+    "rust-analyzer.lens.run.enable": true,
+    "rust-analyzer.lens.implementations.enable": true,
+    "rust-analyzer.lens.references.adt.enable": false,
+    "rust-analyzer.lens.references.enumVariant.enable": false,
+    "rust-analyzer.lens.references.method.enable": false,
+    "rust-analyzer.lens.references.trait.enable": false,
+    // Notificações e progress
+    "rust-analyzer.notifications.cargoTomlNotFound": true,
+    "rust-analyzer.statusBar.clickAction": "openLogs"
+}
