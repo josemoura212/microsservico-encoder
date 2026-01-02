@@ -3,14 +3,13 @@ name = "encoder-rust"
 version = "0.1.0"
 edition = "2024"
 
-# Otimizações de compilação
 [profile.dev]
 opt-level = 0
-debug = 1          # Reduz tamanho dos símbolos de debug (0=none, 1=line-info, 2=full)
+debug = 1
 incremental = true
 
 [profile.dev.package."*"]
-opt-level = 2 # Compila dependências otimizadas mesmo em dev
+opt-level = 2
 
 [profile.release]
 opt-level = 3
