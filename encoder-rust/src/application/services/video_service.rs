@@ -55,6 +55,38 @@ where
 
         Ok(())
     }
+
+    async fn fragment(&self) -> anyhow::Result<()> {
+        let local_storage_path =
+            env::var("localStoragePath").unwrap_or_else(|_| "/tmp".to_string());
+
+        tokio::fs::create_dir_all(format!("{}/{}", local_storage_path, self.video.id))
+            .await
+            .expect("Failed to create tmp directory");
+
+        let source = format!("{}/{}.mp4", local_storage_path, self.video.id);
+        let destination = format!("{}/{}.frag", local_storage_path, self.video.id);
+
+        let output = tokio::process::Command::new("mp4fragment")
+            .args(&[source, destination])
+            .output()
+            .await?;
+
+        Self::print_output(&output);
+
+        Ok(())
+    }
+
+    fn print_output(output: &std::process::Output) {
+        if output.status.success() {
+            tracing::info!(
+                "=====> Output {:?}",
+                String::from_utf8_lossy(&output.stdout)
+            );
+        } else {
+            tracing::error!("=====> Error {:?}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
 }
 
 #[cfg(test)]
