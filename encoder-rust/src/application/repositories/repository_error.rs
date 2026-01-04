@@ -8,3 +8,14 @@ impl std::fmt::Display for VideoRepositoryError {
 }
 
 impl std::error::Error for VideoRepositoryError {}
+
+#[derive(Debug)]
+pub struct JobRepositoryError(pub String);
+
+impl std::fmt::Display for JobRepositoryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "JobRepository error: {}", self.0)
+    }
+}
+
+impl std::error::Error for JobRepositoryError {}

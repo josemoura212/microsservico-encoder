@@ -1,5 +1,6 @@
 use sqlx::{Pool, Postgres, Sqlite, sqlite::SqlitePoolOptions};
 
+#[derive(Clone)]
 pub struct Database<T>
 where
     T: sqlx::Database,

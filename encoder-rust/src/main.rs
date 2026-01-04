@@ -1,3 +1,5 @@
+#![allow(unused, dead_code)]
+
 use tracing_subscriber::EnvFilter;
 
 mod application;
