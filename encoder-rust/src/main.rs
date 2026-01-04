@@ -7,9 +7,12 @@ mod domain;
 mod framework;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     init_logs();
+
     println!("Hello, world!");
+
+    Ok(())
 }
 
 pub fn init_logs() {

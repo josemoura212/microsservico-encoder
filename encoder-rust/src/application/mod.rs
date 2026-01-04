@@ -1,4 +1,4 @@
-pub mod repositories {
+mod repositories {
     mod job_repository;
     mod repository_error;
     mod repository_trait;
@@ -10,6 +10,14 @@ pub mod repositories {
     pub use video_repository::VideoRepository;
 }
 
+mod services {
+    mod video_service;
+
+    pub use video_service::VideoService;
+}
+
 pub use repositories::{
     JobRepository, JobRepositoryError, Repository, VideoRepository, VideoRepositoryError,
 };
+
+pub use services::VideoService;
