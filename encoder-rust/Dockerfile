@@ -1,7 +1,7 @@
 FROM rustlang/rust:nightly-alpine AS builder
 
 # Install dependencies
-RUN apk add --no-cache musl-dev ffmpeg bash make python3 pkgconfig openssl-dev openssl-libs-static
+RUN apk add --no-cache musl-dev ffmpeg bash make python3 pkgconfig openssl-dev openssl-libs-static gcc libc6-compat libstdc++ libgcc
 
 # Install Bento4
 WORKDIR /tmp/bento4
@@ -34,7 +34,7 @@ RUN cargo build --release
 
 # Final stage
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates ffmpeg bash
+RUN apk add --no-cache ca-certificates ffmpeg bash make gcc musl-dev libc6-compat libstdc++ libgcc
 
 # Copy Bento4
 COPY --from=builder /opt/bento4 /opt/bento4

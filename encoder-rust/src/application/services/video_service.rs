@@ -78,13 +78,9 @@ where
     }
 
     fn print_output(output: &std::process::Output) {
-        if output.status.success() {
-            tracing::info!(
-                "=====> Output {:?}",
-                String::from_utf8_lossy(&output.stdout)
-            );
-        } else {
-            tracing::error!("=====> Error {:?}", String::from_utf8_lossy(&output.stderr));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if !stdout.is_empty() {
+            tracing::info!("=====> Output: {}", stdout);
         }
     }
 }
@@ -186,5 +182,59 @@ mod tests {
         let result = video_service.download("invalid-bucket-name").await;
 
         assert!(result.is_err(), "Download should fail with invalid bucket");
+    }
+
+    #[tokio::test]
+    async fn test_fragment_video() {
+        // Setup
+        let db = setup_test_db().await;
+        let video_repository = VideoRepository::new(db);
+        let video = Video::new("test_resource".to_string(), "test_file.mp4".to_string());
+
+        let video_service = VideoService::new(video_repository, video.clone());
+
+        // Criar pasta tmp
+        let tmp_path = "./tmp";
+        tokio::fs::create_dir_all(tmp_path)
+            .await
+            .expect("Failed to create tmp directory");
+
+        unsafe {
+            env::set_var("localStoragePath", tmp_path);
+        }
+
+        // Criar um arquivo MP4 vazio de teste (para simular um vídeo)
+        let test_video_path = format!("{}/{}.mp4", tmp_path, video.id);
+        let mut file = File::create(&test_video_path)
+            .await
+            .expect("Failed to create test video file");
+
+        // Escrever alguns bytes para criar um arquivo válido (mínimo para mp4)
+        // Isso não é um MP4 real, mas serve para testar se o comando executa
+        file.write_all(b"test data")
+            .await
+            .expect("Failed to write test data");
+        file.flush().await.expect("Failed to flush file");
+
+        // Executar fragmentação
+        let result = video_service.fragment().await;
+
+        // O mp4fragment deve falhar com arquivo inválido, mas pelo menos deve executar
+        // Verificamos se o erro é do comando (arquivo inválido) e não de "comando não encontrado"
+        if let Err(e) = result {
+            let error_msg = e.to_string();
+            // Se o erro contém "No such file or directory" significa que mp4fragment não foi encontrado
+            assert!(
+                !error_msg.contains("No such file or directory"),
+                "mp4fragment command should be available: {}",
+                error_msg
+            );
+            // Qualquer outro erro está ok (esperado com arquivo de teste inválido)
+            tracing::info!("Expected error with test file: {}", error_msg);
+        }
+
+        // Cleanup
+        let _ = tokio::fs::remove_file(&test_video_path).await;
+        let _ = tokio::fs::remove_dir(format!("{}/{}", tmp_path, video.id)).await;
     }
 }

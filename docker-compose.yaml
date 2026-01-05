@@ -25,13 +25,16 @@ services:
       - db
 
   encoder-rust:
-    build: ./encoder-rust
+    build:
+      context: ./encoder-rust
+      target: builder
     volumes:
       - ./encoder-rust:/usr/src/app
     working_dir: /usr/src/app
     command: ["tail", "-f", "/dev/null"]
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/encoder_rust?sslmode=disable"
+      PATH: "/opt/bento4/bin:${PATH}"
     depends_on:
       - db
 
