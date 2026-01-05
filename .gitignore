@@ -1,3 +1,4 @@
 .env
 bucket-credential.json
 *.sql
+tmp/

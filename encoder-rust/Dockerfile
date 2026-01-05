@@ -1,7 +1,7 @@
-FROM rust:1.92-alpine AS builder
+FROM rustlang/rust:nightly-alpine AS builder
 
 # Install dependencies
-RUN apk add --no-cache musl-dev ffmpeg bash make python3
+RUN apk add --no-cache musl-dev ffmpeg bash make python3 pkgconfig openssl-dev openssl-libs-static
 
 # Install Bento4
 WORKDIR /tmp/bento4

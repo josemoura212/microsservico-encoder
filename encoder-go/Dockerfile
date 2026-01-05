@@ -1,10 +1,14 @@
-FROM golang:1.21-alpine
+FROM golang:1.25-alpine
 ENV PATH="$PATH:/bin/bash" \
     BENTO4_BIN="/opt/bento4/bin" \
-    PATH="$PATH:/opt/bento4/bin"
+    PATH="$PATH:/opt/bento4/bin" \
+    CGO_ENABLED=1
 
-# FFMPEG
-RUN apk add --update ffmpeg bash make
+# FFMPEG and build dependencies for CGO
+RUN apk add --update ffmpeg bash make gcc musl-dev sqlite-dev
+
+# Install glibc compatibility for Bento4 binaries
+RUN apk add --no-cache libc6-compat
 
 # Install Bento4 from binary
 RUN apk add --update --upgrade bash && \
