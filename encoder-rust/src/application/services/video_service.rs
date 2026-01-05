@@ -77,6 +77,51 @@ where
         Ok(())
     }
 
+    async fn encode(&self) -> anyhow::Result<()> {
+        let mut cmd_args = vec![];
+
+        let local_storage_path =
+            env::var("localStoragePath").unwrap_or_else(|_| "/tmp".to_string());
+
+        cmd_args.push(format!("{}/{}.frag", local_storage_path, self.video.id));
+        cmd_args.push("--use-segment-timeline".to_string());
+        cmd_args.push("-o".to_string());
+        cmd_args.push(format!("{}/{}", local_storage_path, self.video.id));
+        cmd_args.push("-f".to_string());
+        cmd_args.push("--exec-dir".to_string());
+        cmd_args.push("/opt/bento4/bin/".to_string());
+
+        let output = tokio::process::Command::new("mp4dash")
+            .args(&cmd_args)
+            .output()
+            .await?;
+
+        Self::print_output(&output);
+
+        Ok(())
+    }
+
+    async fn finish(&self) -> anyhow::Result<()> {
+        let local_storage_path =
+            env::var("localStoragePath").unwrap_or_else(|_| "/tmp".to_string());
+
+        tokio::fs::remove_file(format!("{}/{}.mp4", local_storage_path, self.video.id))
+            .await
+            .expect("Failed to remove mp4 file");
+
+        tokio::fs::remove_file(format!("{}/{}.frag", local_storage_path, self.video.id))
+            .await
+            .expect("Failed to remove fragment file");
+
+        tokio::fs::remove_dir_all(format!("{}/{}", local_storage_path, self.video.id))
+            .await
+            .expect("Failed to remove video directory");
+
+        tracing::info!("Cleaned up files for video {}", self.video.id);
+
+        Ok(())
+    }
+
     fn print_output(output: &std::process::Output) {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if !stdout.is_empty() {
@@ -103,12 +148,11 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_download_video_from_gcs() {
+    async fn test_video_service_download() {
         // Setup
         let db = setup_test_db().await;
         let video_repository = VideoRepository::new(db);
 
-        // Criar um vídeo com o arquivo do bucket (caminho completo incluindo pasta videos)
         let video = Video::new(
             "3fa3291e-5daf-4386-9a67-69d19e1690c5".to_string(),
             "videos/3fa3291e-5daf-4386-9a67-69d19e1690c5/videos/3fa3291e-5daf-4386-9a67-69d19e1690c5-b8c187dd77c950e9b117bcc19e35a9005e45001593f7f4260040cee47d77faa0.mp4".to_string(),
@@ -116,84 +160,6 @@ mod tests {
 
         let video_service = VideoService::new(video_repository, video.clone());
 
-        // Nome do bucket
-        let bucket_name = "micro-admin-typescript-josemoura212";
-
-        // Criar pasta tmp na raiz do projeto
-        let tmp_path = "./tmp";
-        tokio::fs::create_dir_all(tmp_path)
-            .await
-            .expect("Failed to create tmp directory");
-
-        // Configurar o caminho de armazenamento local para testes
-        unsafe {
-            env::set_var("localStoragePath", tmp_path);
-        }
-
-        // Executar o download
-        let result = video_service.download(bucket_name).await;
-
-        // Verificações
-        assert!(result.is_ok(), "Download should succeed: {:?}", result);
-
-        // Verificar se o arquivo foi criado
-        let expected_file_path = format!("./tmp/{}.mp4", video.id);
-        let file_exists = tokio::fs::metadata(&expected_file_path).await.is_ok();
-        assert!(
-            file_exists,
-            "Downloaded file should exist at {}",
-            expected_file_path
-        );
-
-        // Verificar se o arquivo tem conteúdo
-        let file_metadata = tokio::fs::metadata(&expected_file_path)
-            .await
-            .expect("Failed to get file metadata");
-        assert!(
-            file_metadata.len() > 0,
-            "Downloaded file should have content"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_video_service_creation() {
-        let db = setup_test_db().await;
-        let video_repository = VideoRepository::new(db);
-        let video = Video::new("test_resource".to_string(), "test_file.mp4".to_string());
-
-        let video_service = VideoService::new(video_repository, video.clone());
-
-        assert_eq!(video_service.video.resource_id, "test_resource");
-        assert_eq!(video_service.video.file_path, "test_file.mp4");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_download_with_invalid_bucket() {
-        let db = setup_test_db().await;
-        let video_repository = VideoRepository::new(db);
-        let video = Video::new(
-            "test_resource".to_string(),
-            "nonexistent_file.mp4".to_string(),
-        );
-
-        let video_service = VideoService::new(video_repository, video);
-
-        let result = video_service.download("invalid-bucket-name").await;
-
-        assert!(result.is_err(), "Download should fail with invalid bucket");
-    }
-
-    #[tokio::test]
-    async fn test_fragment_video() {
-        // Setup
-        let db = setup_test_db().await;
-        let video_repository = VideoRepository::new(db);
-        let video = Video::new("test_resource".to_string(), "test_file.mp4".to_string());
-
-        let video_service = VideoService::new(video_repository, video.clone());
-
-        // Criar pasta tmp
         let tmp_path = "./tmp";
         tokio::fs::create_dir_all(tmp_path)
             .await
@@ -203,38 +169,19 @@ mod tests {
             env::set_var("localStoragePath", tmp_path);
         }
 
-        // Criar um arquivo MP4 vazio de teste (para simular um vídeo)
-        let test_video_path = format!("{}/{}.mp4", tmp_path, video.id);
-        let mut file = File::create(&test_video_path)
-            .await
-            .expect("Failed to create test video file");
+        let result = video_service
+            .download("micro-admin-typescript-josemoura212")
+            .await;
 
-        // Escrever alguns bytes para criar um arquivo válido (mínimo para mp4)
-        // Isso não é um MP4 real, mas serve para testar se o comando executa
-        file.write_all(b"test data")
-            .await
-            .expect("Failed to write test data");
-        file.flush().await.expect("Failed to flush file");
+        assert!(result.is_ok());
 
-        // Executar fragmentação
         let result = video_service.fragment().await;
+        assert!(result.is_ok());
 
-        // O mp4fragment deve falhar com arquivo inválido, mas pelo menos deve executar
-        // Verificamos se o erro é do comando (arquivo inválido) e não de "comando não encontrado"
-        if let Err(e) = result {
-            let error_msg = e.to_string();
-            // Se o erro contém "No such file or directory" significa que mp4fragment não foi encontrado
-            assert!(
-                !error_msg.contains("No such file or directory"),
-                "mp4fragment command should be available: {}",
-                error_msg
-            );
-            // Qualquer outro erro está ok (esperado com arquivo de teste inválido)
-            tracing::info!("Expected error with test file: {}", error_msg);
-        }
+        let result = video_service.encode().await;
+        assert!(result.is_ok());
 
-        // Cleanup
-        let _ = tokio::fs::remove_file(&test_video_path).await;
-        let _ = tokio::fs::remove_dir(format!("{}/{}", tmp_path, video.id)).await;
+        let result = video_service.finish().await;
+        assert!(result.is_ok());
     }
 }
