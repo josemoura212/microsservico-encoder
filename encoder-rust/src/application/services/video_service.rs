@@ -149,7 +149,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_video_service_download() {
-        // Setup
         let db = setup_test_db().await;
         let video_repository = VideoRepository::new(db);
 
