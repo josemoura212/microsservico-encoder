@@ -56,13 +56,11 @@ where
         Ok(())
     }
 
-    async fn fragment(&self) -> anyhow::Result<()> {
+    pub async fn fragment(&self) -> anyhow::Result<()> {
         let local_storage_path =
             env::var("localStoragePath").unwrap_or_else(|_| "/tmp".to_string());
 
-        tokio::fs::create_dir_all(format!("{}/{}", local_storage_path, self.video.id))
-            .await
-            .expect("Failed to create tmp directory");
+        tokio::fs::create_dir_all(format!("{}/{}", local_storage_path, self.video.id)).await?;
 
         let source = format!("{}/{}.mp4", local_storage_path, self.video.id);
         let destination = format!("{}/{}.frag", local_storage_path, self.video.id);
@@ -72,50 +70,52 @@ where
             .output()
             .await?;
 
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("mp4fragment failed ({}): {}", output.status, stderr);
+        }
+
         Self::print_output(&output);
 
         Ok(())
     }
 
-    async fn encode(&self) -> anyhow::Result<()> {
-        let mut cmd_args = vec![];
-
+    pub async fn encode(&self) -> anyhow::Result<()> {
         let local_storage_path =
             env::var("localStoragePath").unwrap_or_else(|_| "/tmp".to_string());
 
-        cmd_args.push(format!("{}/{}.frag", local_storage_path, self.video.id));
-        cmd_args.push("--use-segment-timeline".to_string());
-        cmd_args.push("-o".to_string());
-        cmd_args.push(format!("{}/{}", local_storage_path, self.video.id));
-        cmd_args.push("-f".to_string());
-        cmd_args.push("--exec-dir".to_string());
-        cmd_args.push("/opt/bento4/bin/".to_string());
+        let cmd_args = vec![
+            format!("{}/{}.frag", local_storage_path, self.video.id),
+            "--use-segment-timeline".to_string(),
+            "-o".to_string(),
+            format!("{}/{}", local_storage_path, self.video.id),
+            "-f".to_string(),
+            "--exec-dir".to_string(),
+            "/opt/bento4/bin/".to_string(),
+        ];
 
         let output = tokio::process::Command::new("mp4dash")
             .args(&cmd_args)
             .output()
             .await?;
 
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("mp4dash failed ({}): {}", output.status, stderr);
+        }
+
         Self::print_output(&output);
 
         Ok(())
     }
 
-    async fn finish(&self) -> anyhow::Result<()> {
+    pub async fn finish(&self) -> anyhow::Result<()> {
         let local_storage_path =
             env::var("localStoragePath").unwrap_or_else(|_| "/tmp".to_string());
 
-        tokio::fs::remove_file(format!("{}/{}.mp4", local_storage_path, self.video.id))
-            .await
-            .expect("Failed to remove mp4 file");
-
-        tokio::fs::remove_file(format!("{}/{}.frag", local_storage_path, self.video.id))
-            .await
-            .expect("Failed to remove fragment file");
-
-        tokio::fs::remove_dir_all(format!("{}/{}", local_storage_path, self.video.id))
-            .await
-            .expect("Failed to remove video directory");
+        tokio::fs::remove_file(format!("{}/{}.mp4", local_storage_path, self.video.id)).await?;
+        tokio::fs::remove_file(format!("{}/{}.frag", local_storage_path, self.video.id)).await?;
+        tokio::fs::remove_dir_all(format!("{}/{}", local_storage_path, self.video.id)).await?;
 
         tracing::info!("Cleaned up files for video {}", self.video.id);
 
@@ -164,6 +164,7 @@ mod tests {
             .await
             .expect("Failed to create tmp directory");
 
+        // SAFETY: test runs on single-threaded tokio runtime, no concurrent env access
         unsafe {
             env::set_var("localStoragePath", tmp_path);
         }
@@ -182,5 +183,57 @@ mod tests {
 
         let result = video_service.finish().await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_video_service_upload() {
+        let db = setup_test_db().await;
+        let video_repository = VideoRepository::new(db);
+
+        let video = Video::new(
+            "3fa3291e-5daf-4386-9a67-69d19e1690c5".to_string(),
+            "videos/3fa3291e-5daf-4386-9a67-69d19e1690c5/videos/3fa3291e-5daf-4386-9a67-69d19e1690c5-b8c187dd77c950e9b117bcc19e35a9005e45001593f7f4260040cee47d77faa0.mp4".to_string(),
+        );
+
+        let video_service = VideoService::new(video_repository, video.clone());
+
+        let tmp_path = "./tmp";
+        tokio::fs::create_dir_all(tmp_path)
+            .await
+            .expect("Failed to create tmp directory");
+
+        // SAFETY: test runs on single-threaded tokio runtime, no concurrent env access
+        unsafe {
+            env::set_var("localStoragePath", tmp_path);
+        }
+
+        let result = video_service
+            .download("micro-admin-typescript-josemoura212")
+            .await;
+        assert!(result.is_ok());
+
+        let result = video_service.fragment().await;
+        assert!(result.is_ok());
+
+        let result = video_service.encode().await;
+        assert!(result.is_ok());
+
+        let mut video_upload = crate::application::VideoUpload::new(
+            format!("{}/{}", tmp_path, video.id),
+            "micro-admin-typescript-josemoura212".to_string(),
+        );
+
+        let (done_tx, mut done_rx) = tokio::sync::mpsc::channel::<String>(1);
+
+        tokio::spawn(async move {
+            video_upload
+                .process_upload(50, done_tx)
+                .await
+                .expect("process_upload failed");
+        });
+
+        let result = done_rx.recv().await.expect("channel closed");
+        assert_eq!(result, "upload completed");
     }
 }

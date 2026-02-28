@@ -39,10 +39,9 @@ func (repo *VideoRepositoryDb) Insert(video *domain.Video) (*domain.Video, error
 func (repo *VideoRepositoryDb) Find(id string) (*domain.Video, error) {
 	var video domain.Video
 
-	repo.Db.Preload("Jobs").First(&video, "id = ?", id)
-
-	if video.ID == "" {
-		return nil, fmt.Errorf("video does not exist")
+	err := repo.Db.Preload("Jobs").First(&video, "id = ?", id).Error
+	if err != nil {
+		return nil, fmt.Errorf("video not found: %w", err)
 	}
 
 	return &video, nil

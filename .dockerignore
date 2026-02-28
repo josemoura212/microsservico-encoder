@@ -1,0 +1,17 @@
+.git
+.gitignore
+*.md
+tmp/
+.env
+.env.*
+!.env.example
+
+# Go
+encoder-go/tmp/
+encoder-go/bucket-credential.json
+
+# Rust
+encoder-rust/target/
+
+# Dev container
+.devcontainer/

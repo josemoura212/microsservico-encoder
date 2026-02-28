@@ -53,10 +53,11 @@ where
 
     /// Mapeia uma linha do LEFT JOIN para um Job (se existir)
     fn map_job_from_row(row: VideoWithJobsRow, video: &Arc<Video>) -> Option<Arc<Job>> {
+        use crate::domain::JobStatus;
+
         let (_, _, _, _, job_id, output_path, status, video_id, error, created_at, updated_at) =
             row;
 
-        // Se job_id é None, significa que não há job nesta linha (LEFT JOIN sem match)
         let job_id = job_id?;
         let output_path = output_path?;
         let status = status?;
@@ -67,7 +68,7 @@ where
         Some(Arc::new(Job {
             id: job_id,
             output_bucket_path: output_path,
-            status,
+            status: JobStatus::from_str(&status),
             video: Arc::clone(video),
             video_id,
             error,
@@ -158,7 +159,7 @@ mod tests {
 
     use crate::{
         application::Repository,
-        domain::{Job, Video},
+        domain::{Job, JobStatus, Video},
         framework::Database,
     };
 
@@ -221,13 +222,13 @@ mod tests {
 
         let job1 = Job::new(
             "/output/path1".to_string(),
-            "pending".to_string(),
+            JobStatus::Pending,
             Arc::clone(&video_arc),
         );
 
         let job2 = Job::new(
             "/output/path2".to_string(),
-            "completed".to_string(),
+            JobStatus::Completed,
             Arc::clone(&video_arc),
         );
 

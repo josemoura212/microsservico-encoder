@@ -1,0 +1,16 @@
+{
+  "name": "Encoder Dev",
+  "dockerComposeFile": ["../docker-compose.yaml", "docker-compose.dev.yaml"],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "rustup update nightly && rustup default nightly && mkdir -p /go/src && ln -sf /workspace/bucket-credential.json /go/src/bucket-credential.json",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "rust-lang.rust-analyzer",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}

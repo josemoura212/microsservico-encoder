@@ -12,6 +12,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   encoder-go:
     build: ./encoder-go
@@ -22,7 +27,8 @@ services:
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/encoder_go?sslmode=disable"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   encoder-rust:
     build:
@@ -34,9 +40,10 @@ services:
     command: ["tail", "-f", "/dev/null"]
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/encoder_rust?sslmode=disable"
-      PATH: "/opt/bento4/bin:${PATH}"
+      PATH: "/opt/bento4/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

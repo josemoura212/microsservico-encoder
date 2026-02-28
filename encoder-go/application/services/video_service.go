@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoder/application/repositories"
 	"encoder/domain"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	"cloud.google.com/go/storage"
 )
+
+const cmdTimeout = 10 * time.Minute
 
 type VideoService struct {
 	Video           *domain.Video
@@ -21,46 +25,43 @@ func NewVideoService() VideoService {
 	return VideoService{}
 }
 
-func (v *VideoService) Download(bucketName string) error {
+func (v *VideoService) getLocalStoragePath() string {
+	path := os.Getenv("localStoragePath")
+	if path == "" {
+		return "/tmp"
+	}
+	return path
+}
 
+func (v *VideoService) Download(bucketName string) error {
 	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
-
 	if err != nil {
 		return err
 	}
+	defer client.Close()
 
 	bkt := client.Bucket(bucketName)
 	obj := bkt.Object(v.Video.FilePath)
 
 	r, err := obj.NewReader(ctx)
-
 	if err != nil {
 		return err
 	}
-
 	defer r.Close()
 
-	body, err := io.ReadAll(r)
-
+	filePath := v.getLocalStoragePath() + "/" + v.Video.ID + ".mp4"
+	f, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
-
-	f, err := os.Create(os.Getenv("localStoragePath") + "/" + v.Video.ID + ".mp4")
-
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write(body)
-
-	if err != nil {
-		return err
-	}
-
 	defer f.Close()
+
+	_, err = io.Copy(f, r)
+	if err != nil {
+		return err
+	}
 
 	log.Printf("video %v has been stored", v.Video.ID)
 
@@ -68,45 +69,52 @@ func (v *VideoService) Download(bucketName string) error {
 }
 
 func (v *VideoService) Fragment() error {
-	err := os.MkdirAll(os.Getenv("localStoragePath")+"/"+v.Video.ID, os.ModePerm)
+	localPath := v.getLocalStoragePath()
 
+	err := os.MkdirAll(localPath+"/"+v.Video.ID, 0750)
 	if err != nil {
 		return err
 	}
 
-	source := os.Getenv("localStoragePath") + "/" + v.Video.ID + ".mp4"
-	target := os.Getenv("localStoragePath") + "/" + v.Video.ID + ".frag"
+	source := localPath + "/" + v.Video.ID + ".mp4"
+	target := localPath + "/" + v.Video.ID + ".frag"
 
-	cmd := exec.Command("mp4fragment", source, target)
+	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "mp4fragment", source, target)
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
-		return err
+		return fmt.Errorf("mp4fragment failed: %w", err)
 	}
 
 	printOutPut(output)
 
 	return nil
-
 }
 
 func (v *VideoService) Encode() error {
-	cmdArgs := []string{}
-	cmdArgs = append(cmdArgs, os.Getenv("localStoragePath")+"/"+v.Video.ID+".frag")
-	cmdArgs = append(cmdArgs, "--use-segment-timeline")
-	cmdArgs = append(cmdArgs, "-o")
-	cmdArgs = append(cmdArgs, os.Getenv("localStoragePath")+"/"+v.Video.ID)
-	cmdArgs = append(cmdArgs, "-f")
-	cmdArgs = append(cmdArgs, "--exec-dir")
-	cmdArgs = append(cmdArgs, "/opt/bento4/bin/")
+	localPath := v.getLocalStoragePath()
 
-	cmd := exec.Command("mp4dash", cmdArgs...)
+	cmdArgs := []string{
+		localPath + "/" + v.Video.ID + ".frag",
+		"--use-segment-timeline",
+		"-o",
+		localPath + "/" + v.Video.ID,
+		"-f",
+		"--exec-dir",
+		"/opt/bento4/bin/",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "mp4dash", cmdArgs...)
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
-		return err
+		return fmt.Errorf("mp4dash failed: %w", err)
 	}
 
 	printOutPut(output)
@@ -115,19 +123,21 @@ func (v *VideoService) Encode() error {
 }
 
 func (v *VideoService) Finish() error {
-	err := os.Remove(os.Getenv("localStoragePath") + "/" + v.Video.ID + ".mp4")
+	localPath := v.getLocalStoragePath()
+
+	err := os.Remove(localPath + "/" + v.Video.ID + ".mp4")
 	if err != nil {
 		log.Println("error removing mp4 ", v.Video.ID, ".mp4")
 		return err
 	}
 
-	err = os.Remove(os.Getenv("localStoragePath") + "/" + v.Video.ID + ".frag")
+	err = os.Remove(localPath + "/" + v.Video.ID + ".frag")
 	if err != nil {
 		log.Println("error removing frag ", v.Video.ID, ".frag")
 		return err
 	}
 
-	err = os.RemoveAll(os.Getenv("localStoragePath") + "/" + v.Video.ID)
+	err = os.RemoveAll(localPath + "/" + v.Video.ID)
 	if err != nil {
 		log.Println("error removing folder ", v.Video.ID)
 		return err

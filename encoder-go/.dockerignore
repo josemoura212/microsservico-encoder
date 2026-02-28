@@ -1,0 +1,5 @@
+tmp/
+.env
+.env.*
+!.env.example
+bucket-credential.json

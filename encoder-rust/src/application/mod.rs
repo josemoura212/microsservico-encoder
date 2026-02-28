@@ -11,8 +11,10 @@ mod repositories {
 }
 
 mod services {
+    mod upload_service;
     mod video_service;
 
+    pub use upload_service::{VideoUpload, get_client_upload};
     pub use video_service::VideoService;
 }
 
@@ -20,4 +22,4 @@ pub use repositories::{
     JobRepository, JobRepositoryError, Repository, VideoRepository, VideoRepositoryError,
 };
 
-pub use services::VideoService;
+pub use services::{VideoService, VideoUpload, get_client_upload};

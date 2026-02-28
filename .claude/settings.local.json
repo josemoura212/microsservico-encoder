@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go vet:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)",
+      "Bash(go build:*)",
+      "Bash(docker compose:*)"
+    ]
+  }
+}

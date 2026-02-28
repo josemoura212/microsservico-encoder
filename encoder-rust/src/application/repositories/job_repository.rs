@@ -44,12 +44,12 @@ where
         Self { db }
     }
 
-    /// Mapeia uma JobRow para um Job
     fn map_job_from_row(row: JobRow, video: Arc<Video>) -> Job {
+        use crate::domain::JobStatus;
         Job {
             id: row.0,
             output_bucket_path: row.1,
-            status: row.2,
+            status: JobStatus::from_str(&row.2),
             video,
             video_id: row.3,
             error: row.4,
@@ -87,7 +87,7 @@ where
         sqlx::query(INSERT_JOB_QUERY)
             .bind(item.id)
             .bind(&item.output_bucket_path)
-            .bind(&item.status)
+            .bind(item.status.to_string())
             .bind(item.video_id)
             .bind(&item.error)
             .bind(item.created_at)
@@ -132,7 +132,7 @@ where
     async fn update(&self, item: &Job) -> Result<Job, Self::Error> {
         sqlx::query(UPDATE_JOB_QUERY)
             .bind(&item.output_bucket_path)
-            .bind(&item.status)
+            .bind(item.status.to_string())
             .bind(&item.error)
             .bind(item.updated_at)
             .bind(item.id)
@@ -151,7 +151,7 @@ mod tests {
 
     use crate::{
         application::Repository,
-        domain::{Job, Video},
+        domain::{Job, JobStatus, Video},
         framework::Database,
     };
 
@@ -186,7 +186,7 @@ mod tests {
         // Criar e inserir job
         let job_repo = super::JobRepository { db };
         let video_arc = Arc::new(new_video);
-        let new_job = Job::new("/output/path".to_string(), "pending".to_string(), video_arc);
+        let new_job = Job::new("/output/path".to_string(), JobStatus::Pending, video_arc);
 
         let inserted_job = job_repo
             .insert(&new_job)
@@ -229,11 +229,7 @@ mod tests {
         // Criar e inserir job
         let job_repo = super::JobRepository { db };
         let video_arc = Arc::new(new_video);
-        let mut new_job = Job::new(
-            "/output/path2".to_string(),
-            "pending".to_string(),
-            video_arc,
-        );
+        let mut new_job = Job::new("/output/path2".to_string(), JobStatus::Pending, video_arc);
 
         job_repo
             .insert(&new_job)
@@ -241,7 +237,7 @@ mod tests {
             .expect("Failed to insert job");
 
         // Atualizar job
-        new_job.status = "completed".to_string();
+        new_job.status = JobStatus::Completed;
         new_job.updated_at = chrono::Utc::now();
 
         let updated_job = job_repo
@@ -249,14 +245,13 @@ mod tests {
             .await
             .expect("Failed to update job");
 
-        assert_eq!(updated_job.status, "completed");
+        assert_eq!(updated_job.status, JobStatus::Completed);
 
-        // Verificar se foi atualizado no banco
         let found_job = job_repo
             .find(&new_job.id)
             .await
             .expect("Failed to find updated job");
 
-        assert_eq!(found_job.status, "completed");
+        assert_eq!(found_job.status, JobStatus::Completed);
     }
 }
