@@ -211,8 +211,8 @@ mod tests {
         let video_repository = VideoRepository::new(db);
 
         let video = Video::new(
-            "3fa3291e-5daf-4386-9a67-69d19e1690c5".to_string(),
-            "videos/3fa3291e-5daf-4386-9a67-69d19e1690c5/videos/3fa3291e-5daf-4386-9a67-69d19e1690c5-b8c187dd77c950e9b117bcc19e35a9005e45001593f7f4260040cee47d77faa0.mp4".to_string(),
+            "video-01".to_string(),
+            "content.mp4".to_string(),
         ).unwrap();
 
         let tmp_path = "./tmp";
@@ -243,8 +243,8 @@ mod tests {
         let video_repository = VideoRepository::new(db);
 
         let video = Video::new(
-            "3fa3291e-5daf-4386-9a67-69d19e1690c5".to_string(),
-            "videos/3fa3291e-5daf-4386-9a67-69d19e1690c5/videos/3fa3291e-5daf-4386-9a67-69d19e1690c5-b8c187dd77c950e9b117bcc19e35a9005e45001593f7f4260040cee47d77faa0.mp4".to_string(),
+            "video-01".to_string(),
+            "content.mp4".to_string(),
         ).unwrap();
 
         let tmp_path = "./tmp";
