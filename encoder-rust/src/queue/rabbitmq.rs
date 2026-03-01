@@ -24,6 +24,12 @@ impl RabbitMQ {
 
     pub async fn connect(&mut self) -> Result<(), QueueError> {
         let dsn = self.config.dsn();
+        tracing::info!(
+            host = %self.config.host,
+            port = %self.config.port,
+            vhost = %self.config.vhost,
+            "connecting to rabbitmq"
+        );
         let conn = Connection::connect(&dsn, ConnectionProperties::default()).await?;
         self.channel = Some(conn.create_channel().await?);
         Ok(())
@@ -55,6 +61,13 @@ impl RabbitMQ {
                 queue: self.config.consumer_queue_name.clone(),
                 source: e,
             })?;
+
+        tracing::info!(
+            queue = %self.config.consumer_queue_name,
+            consumer = %self.config.consumer_name,
+            dlx = %self.config.dlx,
+            "consuming queue"
+        );
 
         let mut consumer = channel
             .basic_consume(
@@ -97,6 +110,8 @@ impl RabbitMQ {
             .as_ref()
             .ok_or(QueueError::ChannelUnavailable)?;
 
+        tracing::debug!(exchange, routing_key, "publishing message");
+
         channel
             .basic_publish(
                 exchange,
@@ -127,15 +142,17 @@ impl RabbitMQ {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
 
     fn test_config() -> QueueConfig {
+        dotenvy::dotenv().ok();
         QueueConfig {
-            user: "guest".to_string(),
-            password: "guest".to_string(),
-            host: "localhost".to_string(),
-            port: "5672".to_string(),
+            user: env::var("RABBITMQ_DEFAULT_USER").unwrap_or_else(|_| "guest".to_string()),
+            password: env::var("RABBITMQ_DEFAULT_PASS").unwrap_or_else(|_| "guest".to_string()),
+            host: env::var("RABBITMQ_DEFAULT_HOST").unwrap_or_else(|_| "localhost".to_string()),
+            port: env::var("RABBITMQ_DEFAULT_PORT").unwrap_or_else(|_| "5672".to_string()),
             vhost: "/".to_string(),
-            consumer_queue_name: "videos".to_string(),
+            consumer_queue_name: "test-videos".to_string(),
             consumer_name: "test-consumer".to_string(),
             dlx: "dlx".to_string(),
             notification_exchange: "amq.direct".to_string(),
@@ -188,7 +205,7 @@ mod tests {
 
         let mut rx = rmq.consume().await.unwrap();
 
-        rmq.notify(r#"{"video_id":"123"}"#, "application/json", "", "videos")
+        rmq.notify(r#"{"video_id":"123"}"#, "application/json", "", "test-videos")
             .await
             .unwrap();
 

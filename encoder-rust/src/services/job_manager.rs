@@ -36,6 +36,7 @@ crate::db::impl_with_db! {
     }
 
     pub async fn start(&mut self, concurrency: usize) -> Result<(), JobManagerError> {
+        tracing::info!(concurrency, "job manager started, waiting for messages");
         let mut consumer_rx = self.rabbitmq.consume().await?;
         let semaphore = Arc::new(Semaphore::new(concurrency));
         let (result_tx, mut result_rx) = mpsc::channel::<JobWorkerResult>(concurrency);
@@ -79,6 +80,12 @@ crate::db::impl_with_db! {
 
     async fn notify_success(&self, result: &JobWorkerResult) -> Result<(), JobManagerError> {
         if let Some(ref job) = result.job {
+            tracing::info!(
+                job_id = %job.id,
+                video_id = %job.video.id,
+                status = %job.status,
+                "job completed successfully"
+            );
             let payload = serde_json::to_string(job)?;
             self.rabbitmq.notify_default(&payload).await?;
         }

@@ -62,9 +62,11 @@ impl<T: sqlx::Database> Clone for Database<T> {
 
 impl Database<Postgres> {
     pub async fn new(uri: String, auto_migrate: Option<bool>) -> Result<Self, sqlx::Error> {
+        tracing::info!("connecting to postgres");
         let db = Pool::<Postgres>::connect(&uri).await?;
 
         if auto_migrate.unwrap_or(false) {
+            tracing::info!("running database migrations");
             sqlx::migrate!().run(&db).await?;
         }
 

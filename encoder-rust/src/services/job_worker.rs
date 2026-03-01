@@ -60,6 +60,12 @@ crate::db::impl_with_db! {
         let msg: VideoMessage =
             serde_json::from_slice(&delivery.data).map_err(|e| format!("invalid JSON: {e}"))?;
 
+        tracing::info!(
+            resource_id = %msg.resource_id,
+            file_path = %msg.file_path,
+            "processing video message"
+        );
+
         let video =
             Video::new(msg.resource_id, msg.file_path).map_err(|e| e.to_string())?;
 
@@ -71,6 +77,12 @@ crate::db::impl_with_db! {
 
         let video_arc = Arc::new(video.clone());
         let job = Job::new(self.config.output_bucket_name.clone(), video_arc);
+
+        tracing::info!(
+            job_id = %job.id,
+            video_id = %video.id,
+            "job created, starting pipeline"
+        );
 
         let job_repo = JobRepository::new(self.db.clone());
         job_repo

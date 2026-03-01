@@ -89,6 +89,8 @@ crate::db::impl_with_db! {
         &mut self,
         status: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        tracing::info!(job_id = %self.job.id, status, "job status changed");
+
         let mut updated = self.job.clone();
         updated.status = status
             .to_lowercase()
@@ -102,6 +104,8 @@ crate::db::impl_with_db! {
     }
 
     async fn fail_job(&mut self, error: String) -> JobServiceError {
+        tracing::error!(job_id = %self.job.id, error = %error, "job failed");
+
         let failed = self.job.fail(error.clone());
 
         if let Ok(updated) = self.job_repository.update(&failed).await {
