@@ -26,7 +26,7 @@ func NewVideoService() VideoService {
 }
 
 func (v *VideoService) getLocalStoragePath() string {
-	path := os.Getenv("localStoragePath")
+	path := os.Getenv(EnvLocalStoragePath)
 	if path == "" {
 		return "/tmp"
 	}
@@ -144,6 +144,16 @@ func (v *VideoService) Finish() error {
 	}
 
 	log.Println("Files have been removed:", v.Video.ID)
+
+	return nil
+}
+
+func (v *VideoService) InsertVideo() error {
+	_, err := v.VideoRepository.Insert(v.Video)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

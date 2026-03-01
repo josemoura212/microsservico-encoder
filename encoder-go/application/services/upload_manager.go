@@ -24,7 +24,7 @@ func NewVideoUpload() *VideoUpload {
 }
 
 func (vu *VideoUpload) UploadObject(objectPath string, client *storage.Client, ctx context.Context) error {
-	path := strings.Split(objectPath, os.Getenv("localStoragePath")+"/")
+	path := strings.Split(objectPath, os.Getenv(EnvLocalStoragePath)+"/")
 
 	f, err := os.Open(objectPath)
 

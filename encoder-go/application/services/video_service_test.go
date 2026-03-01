@@ -46,7 +46,7 @@ func TestVideoServiceDownload(t *testing.T) {
 	videoService.Video = video
 	videoService.VideoRepository = &repo
 
-	err := videoService.Download("micro-admin-typescript-josemoura212")
+	err := videoService.Download(services.BucketName)
 
 	require.Nil(t, err)
 
