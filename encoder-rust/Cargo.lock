@@ -667,6 +667,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "futures-lite 2.6.1",
+ "futures-util",
  "gcloud-storage",
  "lapin",
  "serde",

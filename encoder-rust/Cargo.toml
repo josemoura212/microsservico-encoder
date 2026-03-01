@@ -29,7 +29,8 @@ tracing = { version = "0.1.44", features = ["log", "async-await"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.21.0", features = ["v4", "serde"] }
 futures-lite = "2"
-google-cloud-storage = { package = "gcloud-storage", version = "1.0.0" }
+google-cloud-storage = { package = "gcloud-storage", version = "1.2.0" }
+futures-util = "0.3"
 lapin = "2"
 
 

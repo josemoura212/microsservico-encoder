@@ -5,6 +5,7 @@ use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use tokio::fs;
 use tokio::sync::{Semaphore, mpsc};
+use tokio_util::io::ReaderStream;
 use tokio_util::sync::CancellationToken;
 
 pub struct VideoUpload {
@@ -64,15 +65,16 @@ impl VideoUpload {
                     .unwrap_or(&path);
 
                 let result = async {
-                    let data = fs::read(&path).await?;
+                    let file = fs::File::open(&path).await?;
+                    let stream = ReaderStream::new(file);
                     let upload_type = UploadType::Simple(Media::new(relative.to_string()));
                     client
-                        .upload_object(
+                        .upload_streamed_object(
                             &UploadObjectRequest {
                                 bucket,
                                 ..Default::default()
                             },
-                            data,
+                            stream,
                             &upload_type,
                         )
                         .await?;

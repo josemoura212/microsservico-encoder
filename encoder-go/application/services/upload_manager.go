@@ -35,6 +35,7 @@ func (vu *VideoUpload) UploadObject(objectPath string, client *storage.Client, c
 	defer f.Close()
 
 	wc := client.Bucket(vu.OutputBucket).Object(path[1]).NewWriter(ctx)
+	wc.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
 
 	if _, err = io.Copy(wc, f); err != nil {
 		return err
@@ -77,7 +78,7 @@ func (vu *VideoUpload) ProcessUpload(concurrency int, doneUpload chan string) er
 	in := make(chan int, runtime.NumCPU())
 	returnChannel := make(chan string, len(vu.Paths))
 
-	uploadClient, ctx, err := getClientUpalod()
+	uploadClient, ctx, err := getClientUpload()
 
 	if err != nil {
 		return err
@@ -124,7 +125,7 @@ func (vu *VideoUpload) uploadWorker(in chan int, returnChannel chan string, uplo
 	}
 }
 
-func getClientUpalod() (*storage.Client, context.Context, error) {
+func getClientUpload() (*storage.Client, context.Context, error) {
 
 	ctx := context.Background()
 

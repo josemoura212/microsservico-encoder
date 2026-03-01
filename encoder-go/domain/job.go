@@ -42,7 +42,6 @@ func init() {
 
 func (job *Job) prepare() {
 	job.ID = uuid.NewV4().String()
-	job.Status = "pending"
 	job.CreatedAt = time.Now()
 	job.UpdatedAt = time.Now()
 }

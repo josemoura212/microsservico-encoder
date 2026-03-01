@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use futures_util::StreamExt;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
@@ -55,8 +56,8 @@ where
             .map_err(|e| anyhow::anyhow!(e))?;
         let client = Client::new(gcs_config);
 
-        let data = client
-            .download_object(
+        let mut stream = client
+            .download_streamed_object(
                 &GetObjectRequest {
                     bucket: bucket_name.to_string(),
                     object: self.video.file_path.clone(),
@@ -71,7 +72,12 @@ where
             PathBuf::from(&self.config.local_storage_path).join(format!("{}.mp4", self.video.id));
 
         let mut file = File::create(&file_path).await?;
-        file.write_all(&data).await?;
+
+        while let Some(chunk) = stream.next().await {
+            let bytes = chunk.map_err(|e| anyhow::anyhow!(e))?;
+            file.write_all(&bytes).await?;
+        }
+
         file.flush().await?;
 
         tracing::info!("Video {} has been stored at {:?}", self.video.id, file_path);
