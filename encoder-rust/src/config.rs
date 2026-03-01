@@ -7,11 +7,13 @@ pub const ENV_LOCAL_STORAGE_PATH: &str = "localStoragePath";
 pub const ENV_INPUT_BUCKET_NAME: &str = "inputBucketName";
 pub const ENV_OUTPUT_BUCKET_NAME: &str = "outputBucketName";
 pub const ENV_CONCURRENCY_UPLOAD: &str = "CONCURRENCY_UPLOAD";
+pub const ENV_CONCURRENCY_WORKERS: &str = "CONCURRENCY_WORKERS";
 
 pub const BUCKET_NAME: &str = "micro-admin-typescript-josemoura212";
 
 const DEFAULT_LOCAL_STORAGE_PATH: &str = "/tmp";
 const DEFAULT_CONCURRENCY: usize = 4;
+const DEFAULT_CONCURRENCY_WORKERS: usize = 2;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -20,6 +22,8 @@ pub struct Config {
     pub input_bucket_name: String,
     pub output_bucket_name: String,
     pub concurrency: usize,
+    pub concurrency_workers: usize,
+    pub auto_migrate: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -41,6 +45,14 @@ impl Config {
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_CONCURRENCY);
+        let concurrency_workers = env::var(ENV_CONCURRENCY_WORKERS)
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_CONCURRENCY_WORKERS);
+        let auto_migrate = env::var(ENV_AUTO_MIGRATE_DB)
+            .ok()
+            .and_then(|v| v.parse::<bool>().ok())
+            .unwrap_or(false);
 
         Ok(Config {
             database_url,
@@ -48,6 +60,8 @@ impl Config {
             input_bucket_name,
             output_bucket_name,
             concurrency,
+            concurrency_workers,
+            auto_migrate,
         })
     }
 }

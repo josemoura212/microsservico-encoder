@@ -184,6 +184,8 @@ mod tests {
             input_bucket_name: "test-bucket".to_string(),
             output_bucket_name: "test-output-bucket".to_string(),
             concurrency: 4,
+            concurrency_workers: 2,
+            auto_migrate: false,
         }
     }
 
