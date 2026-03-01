@@ -5,7 +5,14 @@
       "Bash(cargo check:*)",
       "Bash(cargo test:*)",
       "Bash(go build:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(cd:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(GOOGLE_APPLICATION_CREDENTIALS=\"./bucket-credential.json\" cargo test:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(gh api:*)",
+      "Bash(go test:*)"
     ]
   }
 }
