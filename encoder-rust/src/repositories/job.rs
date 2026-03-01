@@ -2,12 +2,11 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    application::{JobRepositoryError, Repository},
-    domain::{Job, Video},
-    framework::Database,
+    db::Database,
+    domain::{Job, JobStatus, Video},
+    repositories::{JobRepositoryError, Repository},
 };
 
-// Type aliases para melhor legibilidade
 type JobRow = (
     Uuid,
     String,
@@ -19,7 +18,6 @@ type JobRow = (
 );
 type VideoRow = (Uuid, String, String, chrono::DateTime<chrono::Utc>);
 
-// Queries SQL como constantes
 const INSERT_JOB_QUERY: &str = "INSERT INTO jobs (id, output_bucket_path, status, video_id, error, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)";
 
 const FIND_JOB_QUERY: &str = "SELECT id, output_bucket_path, status, video_id, error, created_at, updated_at FROM jobs WHERE id = $1";
@@ -45,11 +43,10 @@ where
     }
 
     fn map_job_from_row(row: JobRow, video: Arc<Video>) -> Job {
-        use crate::domain::JobStatus;
         Job {
             id: row.0,
             output_bucket_path: row.1,
-            status: JobStatus::from_str(&row.2),
+            status: row.2.parse::<JobStatus>().unwrap_or(JobStatus::Pending),
             video,
             video_id: row.3,
             error: row.4,
@@ -59,30 +56,10 @@ where
     }
 }
 
-// Trait bounds organizados por categoria para melhor legibilidade
-impl<DB> Repository<Job> for JobRepository<DB>
-where
-    DB: sqlx::Database,
-    // Suporte aos tipos usados nas queries
-    for<'q> Uuid: sqlx::Encode<'q, DB> + sqlx::Type<DB> + sqlx::Decode<'q, DB>,
-    for<'q> String: sqlx::Encode<'q, DB> + sqlx::Type<DB> + sqlx::Decode<'q, DB>,
-    for<'q> Option<String>: sqlx::Encode<'q, DB> + sqlx::Type<DB> + sqlx::Decode<'q, DB>,
-    for<'q> chrono::DateTime<chrono::Utc>:
-        sqlx::Encode<'q, DB> + sqlx::Type<DB> + sqlx::Decode<'q, DB>,
-    // Suporte a referências nas queries
-    for<'q> &'q Uuid: sqlx::Encode<'q, DB>,
-    for<'q> &'q String: sqlx::Encode<'q, DB>,
-    for<'q> &'q Option<String>: sqlx::Encode<'q, DB>,
-    for<'q> &'q chrono::DateTime<chrono::Utc>: sqlx::Encode<'q, DB>,
-    // Suporte aos argumentos e executor do sqlx
-    for<'q> <DB as sqlx::Database>::Arguments<'q>: sqlx::IntoArguments<'q, DB>,
-    for<'c> &'c mut <DB as sqlx::Database>::Connection: sqlx::Executor<'c, Database = DB>,
-    // Suporte a indexação de colunas
-    usize: sqlx::ColumnIndex<DB::Row>,
-{
+crate::db::impl_with_db! {
+    impl<DB> Repository<Job> for JobRepository<DB> {
     type Error = JobRepositoryError;
 
-    /// Insere um novo job no banco de dados
     async fn insert(&self, item: &Job) -> Result<Job, Self::Error> {
         sqlx::query(INSERT_JOB_QUERY)
             .bind(item.id)
@@ -94,27 +71,24 @@ where
             .bind(item.updated_at)
             .execute(&self.db.conn)
             .await
-            .map_err(|e| JobRepositoryError(e.to_string()))?;
+            .map_err(|e| JobRepositoryError::Database(e.to_string()))?;
 
         Ok(item.clone())
     }
 
-    /// Busca um job por ID, carregando o vídeo associado
     async fn find(&self, id: &Uuid) -> Result<Job, Self::Error> {
-        // Busca o job
         let job_row = sqlx::query_as::<_, JobRow>(FIND_JOB_QUERY)
             .bind(id)
             .fetch_one(&self.db.conn)
             .await
-            .map_err(|e| JobRepositoryError(e.to_string()))?;
+            .map_err(|e| JobRepositoryError::Database(e.to_string()))?;
 
-        // Busca o vídeo associado ao job
         let video_id = job_row.3;
         let video_row = sqlx::query_as::<_, VideoRow>(FIND_VIDEO_QUERY)
             .bind(video_id)
             .fetch_one(&self.db.conn)
             .await
-            .map_err(|e| JobRepositoryError(e.to_string()))?;
+            .map_err(|e| JobRepositoryError::Database(e.to_string()))?;
 
         let video = Arc::new(Video {
             id: video_row.0,
@@ -124,11 +98,9 @@ where
             jobs: Vec::new(),
         });
 
-        // Monta o Job com o vídeo carregado
         Ok(Self::map_job_from_row(job_row, video))
     }
 
-    /// Atualiza um job existente (status, error, updated_at)
     async fn update(&self, item: &Job) -> Result<Job, Self::Error> {
         sqlx::query(UPDATE_JOB_QUERY)
             .bind(&item.output_bucket_path)
@@ -138,9 +110,10 @@ where
             .bind(item.id)
             .execute(&self.db.conn)
             .await
-            .map_err(|e| JobRepositoryError(e.to_string()))?;
+            .map_err(|e| JobRepositoryError::Database(e.to_string()))?;
 
         Ok(item.clone())
+    }
     }
 }
 
@@ -150,14 +123,15 @@ mod tests {
     use std::{env, sync::Arc};
 
     use crate::{
-        application::Repository,
+        config::ENV_DATABASE_URL_TEST,
+        db::Database,
         domain::{Job, JobStatus, Video},
-        framework::Database,
+        repositories::Repository,
     };
 
     async fn setup_test_db() -> Database<Sqlite> {
         let database_url =
-            env::var("DATABASE_URL_TEST").unwrap_or_else(|_| "sqlite::memory:".to_string());
+            env::var(ENV_DATABASE_URL_TEST).unwrap_or_else(|_| "sqlite::memory:".to_string());
 
         Database::<Sqlite>::new(database_url, Some(true))
             .await
@@ -168,8 +142,7 @@ mod tests {
     async fn test_job_repository_insert_and_find() {
         let db = setup_test_db().await;
 
-        // Criar e inserir vídeo primeiro
-        let video_repo = super::super::VideoRepository {
+        let video_repo = crate::repositories::VideoRepository {
             db: Database {
                 conn: db.conn.clone(),
             },
@@ -177,16 +150,16 @@ mod tests {
         let new_video = Video::new(
             "resource_456".to_string(),
             "/path/to/video2.mp4".to_string(),
-        );
+        )
+        .unwrap();
         video_repo
             .insert(&new_video)
             .await
             .expect("Failed to insert video");
 
-        // Criar e inserir job
         let job_repo = super::JobRepository { db };
         let video_arc = Arc::new(new_video);
-        let new_job = Job::new("/output/path".to_string(), JobStatus::Pending, video_arc);
+        let new_job = Job::new("/output/path".to_string(), video_arc);
 
         let inserted_job = job_repo
             .insert(&new_job)
@@ -195,7 +168,6 @@ mod tests {
 
         assert_eq!(inserted_job.id, new_job.id);
 
-        // Buscar job
         let found_job = job_repo
             .find(&new_job.id)
             .await
@@ -211,8 +183,7 @@ mod tests {
     async fn test_job_repository_update() {
         let db = setup_test_db().await;
 
-        // Criar e inserir vídeo
-        let video_repo = super::super::VideoRepository {
+        let video_repo = crate::repositories::VideoRepository {
             db: Database {
                 conn: db.conn.clone(),
             },
@@ -220,28 +191,26 @@ mod tests {
         let new_video = Video::new(
             "resource_789".to_string(),
             "/path/to/video3.mp4".to_string(),
-        );
+        )
+        .unwrap();
         video_repo
             .insert(&new_video)
             .await
             .expect("Failed to insert video");
 
-        // Criar e inserir job
         let job_repo = super::JobRepository { db };
         let video_arc = Arc::new(new_video);
-        let mut new_job = Job::new("/output/path2".to_string(), JobStatus::Pending, video_arc);
+        let new_job = Job::new("/output/path2".to_string(), video_arc);
 
         job_repo
             .insert(&new_job)
             .await
             .expect("Failed to insert job");
 
-        // Atualizar job
-        new_job.status = JobStatus::Completed;
-        new_job.updated_at = chrono::Utc::now();
+        let completed_job = new_job.complete();
 
         let updated_job = job_repo
-            .update(&new_job)
+            .update(&completed_job)
             .await
             .expect("Failed to update job");
 
