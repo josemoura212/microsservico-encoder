@@ -68,9 +68,10 @@ impl QueueConfig {
     }
 
     pub fn dsn(&self) -> String {
+        let encoded_vhost = self.vhost.replace('/', "%2F");
         format!(
-            "amqp://{}:{}@{}:{}{}",
-            self.user, self.password, self.host, self.port, self.vhost
+            "amqp://{}:{}@{}:{}/{}",
+            self.user, self.password, self.host, self.port, encoded_vhost
         )
     }
 }
@@ -207,7 +208,7 @@ mod tests {
         set_required_env();
 
         let config = QueueConfig::from_env().unwrap();
-        assert_eq!(config.dsn(), "amqp://guest:guest@localhost:5672/");
+        assert_eq!(config.dsn(), "amqp://guest:guest@localhost:5672/%2F");
 
         clear_env();
     }
@@ -220,7 +221,7 @@ mod tests {
         unsafe { env::set_var(ENV_RABBITMQ_VHOST, "/production") };
 
         let config = QueueConfig::from_env().unwrap();
-        assert_eq!(config.dsn(), "amqp://guest:guest@localhost:5672/production");
+        assert_eq!(config.dsn(), "amqp://guest:guest@localhost:5672/%2Fproduction");
 
         clear_env();
     }
