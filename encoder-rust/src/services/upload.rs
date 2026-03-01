@@ -44,12 +44,18 @@ impl VideoUpload {
 
         let mut handles = Vec::new();
 
+        let local_storage = Path::new(&self.video_path)
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_string_lossy()
+            .to_string();
+
         for path in &self.paths {
             let permit = Arc::clone(&semaphore).acquire_owned().await?;
             let client = Arc::clone(&client);
             let path = path.clone();
             let bucket = output_bucket.clone();
-            let video_path = self.video_path.clone();
+            let storage_prefix = local_storage.clone();
             let done_tx = done_tx.clone();
             let token = cancel_token.clone();
 
@@ -61,7 +67,7 @@ impl VideoUpload {
                 }
 
                 let relative = path
-                    .strip_prefix(&format!("{}/", video_path))
+                    .strip_prefix(&format!("{}/", storage_prefix))
                     .unwrap_or(&path);
 
                 let result = async {
