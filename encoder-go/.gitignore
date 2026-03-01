@@ -5,3 +5,4 @@ bucket-credential.json
 .devcontainer
 tmp/
 server
+encoder-go

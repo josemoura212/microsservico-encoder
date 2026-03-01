@@ -9,7 +9,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbit:
+        condition: service_started
     environment:
       DATABASE_URL_GO: "postgresql://postgres:postgres@db:5432/encoder_go?sslmode=disable"
       DATABASE_URL_RUST: "postgresql://postgres:postgres@db:5432/encoder_rust?sslmode=disable"
       GOOGLE_APPLICATION_CREDENTIALS: "/workspace/bucket-credential.json"
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "rabbitmq"
+      RABBITMQ_DEFAULT_HOST: "rabbit"
+      RABBITMQ_DEFAULT_PORT: "5672"
+      RABBITMQ_DEFAULT_VHOST: "/"
