@@ -72,13 +72,29 @@ migrations/
 ### Go (`encoder-go/`)
 
 ```
-cmd/
-  server/main.go       # Entrypoint
-internal/
-  handler/             # HTTP/gRPC handlers
-  service/             # Lógica de negócio
-  repository/          # Acesso a dados
-  domain/              # Entidades e value objects
+framework/
+  cmd/
+    server/server.go   # Entrypoint: .env + DB + RabbitMQ + JobManager
+  database/
+    db.go              # Database struct, Connect(), auto-migrate (GORM v2)
+  queue/
+    queue.go           # RabbitMQ: Connect, Consume, Notify
+  utils/
+    utils.go           # IsJson helper
+domain/
+  video.go             # Entidade Video + validação
+  job.go               # Entidade Job + NewJob + validação
+application/
+  repositories/
+    video_repository.go  # VideoRepository interface + impl
+    job_repository.go    # JobRepository interface + impl
+  services/
+    constants.go       # Constantes de env vars
+    job_manager.go     # Consome fila, dispatch workers com goroutines
+    job_worker.go      # Processa mensagem individual
+    job_service.go     # Pipeline: download → fragment → encode → upload → finish
+    video_service.go   # Download GCS, mp4fragment, mp4dash
+    upload_manager.go  # Upload paralelo para GCS
 ```
 
 ## Setup
@@ -111,7 +127,7 @@ docker compose up -d encoder-go
 docker compose exec encoder-go bash
 
 # Dentro do container
-go run cmd/server/main.go
+go run framework/cmd/server/server.go
 ```
 
 ## Variáveis de Ambiente
