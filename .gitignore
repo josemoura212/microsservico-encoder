@@ -2,3 +2,7 @@
 bucket-credential.json
 *.sql
 tmp/
+
+.claude/
+.planning/
+.gsd/
